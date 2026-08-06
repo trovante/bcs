@@ -1,0 +1,44 @@
+{
+  "profile": "small",
+  "source": "examples/test.json",
+  "source_sha256": "4d7d88f4285c474309534b9ead4c5098a6f9ade783c35814adcb6c048ed2be16",
+  "source_bytes": 293,
+  "file": "benchmarks/tmp/small.bcs",
+  "file_sha256": "cfa987e1fb0ca237c208927768fe3e34ce78e5c60da084bc9624f33fafa3b289",
+  "file_bytes": 642,
+  "runs": 15,
+  "meta": {
+    "recorded_at": "2026-08-04T07:16:48Z",
+    "git_commit": "unborn",
+    "git_describe": "unborn",
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08) (Homebrew)",
+    "host": "Darwin 25.5.0 arm64",
+    "cli": "bcs 0.1.0",
+    "build_profile": "release",
+    "runs": 15
+  },
+  "bcs": {
+    "decode_time_p50_ns": 4875,
+    "decode_time_p95_ns": 7458,
+    "file_size": 642,
+    "load_time_p50_ns": 13125,
+    "load_time_p95_ns": 15583,
+    "memory_usage_bytes": 642,
+    "path_get_deep_p95_ns": 0,
+    "path_get_deep_samples": 0,
+    "path_get_hot_p95_ns": 0,
+    "path_get_hot_samples": 0,
+    "path_get_simple_p95_ns": 459,
+    "path_get_simple_samples": 15,
+    "path_get_wildcard_p95_ns": 0,
+    "path_get_wildcard_samples": 0,
+    "random_access_avg_ns": 31,
+    "random_access_samples": 4,
+    "runs": 15
+  },
+  "path_hot": {
+    "path_get_hot_p95_ns": 0,
+    "path_get_hot_samples": 0,
+    "runs": 15
+  }
+}

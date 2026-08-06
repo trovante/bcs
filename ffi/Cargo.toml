@@ -1,0 +1,17 @@
+[package]
+name = "bcs-ffi"
+version = "0.1.0"
+edition = "2021"
+authors = ["BCS Contributors"]
+description = "C FFI bindings for Binary Config Schema (alpha)"
+license = "MIT"
+repository = "https://github.com/trovante/bcs"
+
+[lib]
+name = "bcs_ffi"
+crate-type = ["cdylib", "staticlib", "rlib"]
+path = "src/lib.rs"
+
+[dependencies]
+bcs-core = { path = "../core", version = "0.1.0" }
+serde_json = "1.0"

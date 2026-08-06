@@ -1,0 +1,135 @@
+{
+  "meta": {
+    "recorded_at": "2026-08-04T07:16:48Z",
+    "git_commit": "unborn",
+    "git_describe": "unborn",
+    "rustc": "rustc 1.92.0 (ded5c06cf 2025-12-08) (Homebrew)",
+    "host": "Darwin 25.5.0 arm64",
+    "cli": "bcs 0.1.0",
+    "build_profile": "release",
+    "runs": 15
+  },
+  "sizes": [
+    {
+      "source": "examples/test.json",
+      "source_bytes": 293,
+      "default_bcs_bytes": 642,
+      "compact_bcs_bytes": 363,
+      "compact_compressed_bcs_bytes": 363
+    },
+    {
+      "source": "examples/test.yaml",
+      "source_bytes": 209,
+      "default_bcs_bytes": 642,
+      "compact_bcs_bytes": 363,
+      "compact_compressed_bcs_bytes": 363
+    },
+    {
+      "source": "examples/test.toml",
+      "source_bytes": 215,
+      "default_bcs_bytes": 607,
+      "compact_bcs_bytes": 363,
+      "compact_compressed_bcs_bytes": 363
+    }
+  ],
+  "baselines": {
+    "small": {
+      "source": "examples/test.json",
+      "file_bytes": 642,
+      "decode_time_p95_ns": 7458,
+      "load_time_p95_ns": 15583,
+      "path_get_simple_p95_ns": 459,
+      "path_get_deep_p95_ns": 0,
+      "path_get_wildcard_p95_ns": 0,
+      "path_get_hot_p95_ns": 0,
+      "random_access_avg_ns": 31,
+      "random_access_samples": 4
+    },
+    "medium": {
+      "source": "examples/test-nested.json",
+      "file_bytes": 662,
+      "decode_time_p95_ns": 10375,
+      "load_time_p95_ns": 16209,
+      "path_get_simple_p95_ns": 1875,
+      "path_get_deep_p95_ns": 2208,
+      "path_get_wildcard_p95_ns": 2875,
+      "path_get_hot_p95_ns": 2083,
+      "random_access_avg_ns": 21,
+      "random_access_samples": 2
+    },
+    "large": {
+      "source": "benchmarks/tmp/large.json",
+      "file_bytes": 228510,
+      "decode_time_p95_ns": 2355333,
+      "load_time_p95_ns": 676084,
+      "path_get_simple_p95_ns": 856333,
+      "path_get_deep_p95_ns": 900333,
+      "path_get_wildcard_p95_ns": 1136083,
+      "path_get_hot_p95_ns": 871916,
+      "random_access_avg_ns": 62,
+      "random_access_samples": 4
+    }
+  },
+  "compare_small": {
+    "json": {
+      "compare_file": "examples/test.json",
+      "bcs": {
+        "decode_time_p50_ns": 5541,
+        "decode_time_p95_ns": 7625,
+        "random_access_avg_ns": 41,
+        "random_access_samples": 4,
+        "file_size": 642
+      },
+      "text": {
+        "decode_time_p50_ns": 10375,
+        "decode_time_p95_ns": 11792,
+        "file_size": 293
+      },
+      "comparison": {
+        "decode_speedup_x": 1.8724057029417074,
+        "load_speedup_x": 0.6932985738383683,
+        "size_ratio_percent": 219.11262798634814
+      }
+    },
+    "yaml": {
+      "compare_file": "examples/test.yaml",
+      "bcs": {
+        "decode_time_p50_ns": 5000,
+        "decode_time_p95_ns": 9709,
+        "random_access_avg_ns": 52,
+        "random_access_samples": 4,
+        "file_size": 642
+      },
+      "text": {
+        "decode_time_p50_ns": 22292,
+        "decode_time_p95_ns": 33042,
+        "file_size": 209
+      },
+      "comparison": {
+        "decode_speedup_x": 4.4584,
+        "load_speedup_x": 0.736,
+        "size_ratio_percent": 307.17703349282294
+      }
+    },
+    "toml": {
+      "compare_file": "examples/test.toml",
+      "bcs": {
+        "decode_time_p50_ns": 4875,
+        "decode_time_p95_ns": 6250,
+        "random_access_avg_ns": 73,
+        "random_access_samples": 4,
+        "file_size": 642
+      },
+      "text": {
+        "decode_time_p50_ns": 17792,
+        "decode_time_p95_ns": 24168,
+        "file_size": 215
+      },
+      "comparison": {
+        "decode_speedup_x": 3.6496410256410257,
+        "load_speedup_x": 0.7241742532540817,
+        "size_ratio_percent": 298.60465116279073
+      }
+    }
+  }
+}

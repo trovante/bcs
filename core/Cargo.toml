@@ -1,0 +1,34 @@
+[package]
+name = "bcs-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["BCS Contributors"]
+description = "Core library for Binary Config Schema"
+license = "MIT"
+repository = "https://github.com/trovante/bcs"
+readme = "../README.md"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.8"
+rmp-serde = "1.1"  # MessagePack
+lz4 = "1.24"
+memmap2 = "0.9"
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
+thiserror = "1.0"
+aes-gcm = "0.10"
+pbkdf2 = "0.12"
+sha2 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+regex = "1"
+
+[dev-dependencies]
+criterion = "0.5"
+tempfile = "3"
+
+[lib]
+name = "bcs_core"
+path = "src/lib.rs"

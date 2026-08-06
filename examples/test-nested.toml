@@ -1,0 +1,22 @@
+[[services]]
+name = "api"
+ports = [8080, 8081]
+
+[[services.routes]]
+method = "GET"
+paths = ["/health", "/ready"]
+
+[[services.routes]]
+method = "POST"
+paths = ["/items", "/items/bulk"]
+
+[[services]]
+name = "worker"
+ports = [9090]
+
+[[services.routes]]
+method = "GET"
+paths = ["/metrics"]
+
+[metadata]
+version = "1.0"

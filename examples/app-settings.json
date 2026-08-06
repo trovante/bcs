@@ -1,0 +1,42 @@
+{
+  "server": {
+    "host": "localhost",
+    "port": 8080,
+    "tls": {
+      "enabled": false,
+      "cert_path": "/etc/bcs/cert.pem",
+      "key_path": "/etc/bcs/key.pem"
+    }
+  },
+  "database": {
+    "host": "db.internal",
+    "port": 5432,
+    "name": "bcs_app",
+    "pool": {
+      "min": 5,
+      "max": 30,
+      "timeout_ms": 2500
+    }
+  },
+  "features": {
+    "auth": true,
+    "metrics": true,
+    "tracing": false,
+    "cache": true
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "outputs": ["stdout", "file"],
+    "file": {
+      "path": "/var/log/bcs/app.log",
+      "max_size_mb": 50,
+      "max_backups": 5
+    }
+  },
+  "workers": [
+    {"name": "ingest", "threads": 4, "queue": "ingest_jobs"},
+    {"name": "transform", "threads": 6, "queue": "transform_jobs"},
+    {"name": "export", "threads": 2, "queue": "export_jobs"}
+  ]
+}

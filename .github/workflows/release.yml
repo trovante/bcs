@@ -1,0 +1,140 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  build-cli-binaries:
+    name: Build CLI - ${{ matrix.asset_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: bcs
+            asset_name: bcs-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: bcs
+            asset_name: bcs-linux-aarch64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: bcs
+            asset_name: bcs-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: bcs
+            asset_name: bcs-macos-aarch64
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: bcs.exe
+            asset_name: bcs-windows-x86_64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+
+      - name: Build CLI
+        run: cargo build --release --package bcs-cli --target ${{ matrix.target }}
+
+      - name: Strip binary (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }} || true
+
+      - name: Package archive
+        shell: bash
+        run: |
+          mkdir -p dist
+          cd target/${{ matrix.target }}/release
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a ../../../dist/${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
+          else
+            tar czf ../../../dist/${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.asset_name }}.*
+          if-no-files-found: error
+
+  github-release:
+    name: GitHub Release
+    needs: build-cli-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Alpha release of Binary Config Schema (BCS).
+
+            See [CHANGELOG.md](https://github.com/trovante/bcs/blob/${{ github.ref_name }}/CHANGELOG.md) for details.
+
+            **Install CLI from crates.io:** `cargo install bcs-cli`
+            **MCP server:** `cargo install bcs-mcp`
+          files: dist/*
+          fail_on_unmatched_files: true
+          generate_release_notes: false
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish bcs-core
+        run: cargo publish --package bcs-core --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for crates.io (bcs-core)
+        run: sleep 45
+
+      - name: Publish bcs-secrets
+        run: cargo publish --package bcs-secrets --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Wait for crates.io (bcs-secrets)
+        run: sleep 45
+
+      - name: Publish bcs-cli
+        run: cargo publish --package bcs-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Publish bcs-ffi
+        run: cargo publish --package bcs-ffi --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+      - name: Publish bcs-mcp
+        run: cargo publish --package bcs-mcp --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

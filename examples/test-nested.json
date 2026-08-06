@@ -1,0 +1,31 @@
+{
+  "services": [
+    {
+      "name": "api",
+      "ports": [8080, 8081],
+      "routes": [
+        {
+          "method": "GET",
+          "paths": ["/health", "/ready"]
+        },
+        {
+          "method": "POST",
+          "paths": ["/items", "/items/bulk"]
+        }
+      ]
+    },
+    {
+      "name": "worker",
+      "ports": [9090],
+      "routes": [
+        {
+          "method": "GET",
+          "paths": ["/metrics"]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "1.0"
+  }
+}

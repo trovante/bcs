@@ -1,0 +1,58 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "bcs-api",
+    "namespace": "production",
+    "labels": {
+      "app": "bcs-api",
+      "tier": "backend",
+      "team": "platform"
+    }
+  },
+  "spec": {
+    "replicas": 3,
+    "selector": {
+      "matchLabels": {
+        "app": "bcs-api"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "bcs-api",
+          "tier": "backend"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "bcs-api",
+            "image": "ghcr.io/acme/bcs-api:v1.4.2",
+            "ports": [
+              {"containerPort": 8080, "protocol": "TCP"}
+            ],
+            "env": [
+              {"name": "RUST_LOG", "value": "info"},
+              {"name": "BCS_MODE", "value": "production"}
+            ],
+            "resources": {
+              "requests": {"cpu": "250m", "memory": "256Mi"},
+              "limits": {"cpu": "1000m", "memory": "1Gi"}
+            },
+            "livenessProbe": {
+              "httpGet": {"path": "/health", "port": 8080},
+              "initialDelaySeconds": 10,
+              "periodSeconds": 10
+            },
+            "readinessProbe": {
+              "httpGet": {"path": "/ready", "port": 8080},
+              "initialDelaySeconds": 5,
+              "periodSeconds": 5
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,167 @@
+name: Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'cli/**'
+      - 'scripts/bench-gate.sh'
+      - 'benchmarks/**'
+      - '.github/workflows/benchmark.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'core/**'
+      - 'cli/**'
+      - 'scripts/bench-gate.sh'
+      - 'benchmarks/**'
+      - '.github/workflows/benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-gate:
+    name: Benchmark Regression Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BCS_BENCH_RUNS: 15
+      BCS_GATE_PATH_GET_P95_PCT: 8
+      BCS_GATE_DECODE_P95_PCT: 10
+      BCS_GATE_LOAD_P95_PCT: 10
+      BCS_GATE_SIZE_PCT: 20
+      BCS_GATE_PATH_SIMPLE_P95_PCT: 8
+      BCS_GATE_PATH_DEEP_P95_PCT: 8
+      BCS_GATE_PATH_WILDCARD_P95_PCT: 12
+      BCS_GATE_PATH_HOT_P95_PCT: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-benchmark-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run benchmark gate
+        id: bench_gate
+        continue-on-error: true
+        run: ./scripts/bench-gate.sh
+
+      - name: Collect current benchmark JSON artifacts
+        if: always()
+        run: |
+          if [ ! -d benchmarks/current ] || [ -z "$(ls -A benchmarks/current 2>/dev/null)" ]; then
+            echo "No current benchmark JSON files found under benchmarks/current/"
+            mkdir -p benchmarks/current
+          else
+            ls -la benchmarks/current/
+          fi
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          profiles = [
+              ("small", "benchmarks/baseline/small.json", "benchmarks/current/bcs-bench-small.current.json"),
+              ("medium", "benchmarks/baseline/medium.json", "benchmarks/current/bcs-bench-medium.current.json"),
+              ("large", "benchmarks/baseline/large.json", "benchmarks/current/bcs-bench-large.current.json"),
+          ]
+
+          hot_profiles = [
+              ("small", "benchmarks/baseline/small.json", "benchmarks/current/bcs-bench-small.hot.current.json"),
+              ("medium", "benchmarks/baseline/medium.json", "benchmarks/current/bcs-bench-medium.hot.current.json"),
+              ("large", "benchmarks/baseline/large.json", "benchmarks/current/bcs-bench-large.hot.current.json"),
+          ]
+
+          def pct_delta(curr, base):
+              if base == 0:
+                  return 0.0
+              return ((curr - base) / base) * 100.0
+
+          lines = []
+          lines.append("## Benchmark Gate Summary")
+          lines.append("")
+          lines.append("### Active Thresholds")
+          lines.append("")
+          lines.append(f"- path lookup proxy: +{os.environ.get('BCS_GATE_PATH_GET_P95_PCT', '8')}%")
+          lines.append(f"- decode p95: +{os.environ.get('BCS_GATE_DECODE_P95_PCT', '10')}%")
+          lines.append(f"- load p95: +{os.environ.get('BCS_GATE_LOAD_P95_PCT', '10')}%")
+          lines.append(f"- file size: +{os.environ.get('BCS_GATE_SIZE_PCT', '20')}%")
+          lines.append(f"- path simple p95: +{os.environ.get('BCS_GATE_PATH_SIMPLE_P95_PCT', '8')}%")
+          lines.append(f"- path deep p95: +{os.environ.get('BCS_GATE_PATH_DEEP_P95_PCT', '8')}%")
+          lines.append(f"- path wildcard p95: +{os.environ.get('BCS_GATE_PATH_WILDCARD_P95_PCT', '12')}%")
+          lines.append(f"- path hot-loop p95: +{os.environ.get('BCS_GATE_PATH_HOT_P95_PCT', '8')}%")
+          lines.append("")
+          lines.append("| Profile | Decode p95 Δ | Load p95 Δ | Path proxy Δ | Path simple p95 Δ | Path deep p95 Δ | Path wildcard p95 Δ | Path hot p95 Δ | Size Δ |")
+          lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+
+          for name, base_path, cur_path in profiles:
+              if not Path(base_path).exists() or not Path(cur_path).exists():
+                  lines.append(f"| {name} | n/a | n/a | n/a | n/a |")
+                  continue
+
+              base = json.loads(Path(base_path).read_text(encoding="utf-8"))["bcs"]
+              cur = json.loads(Path(cur_path).read_text(encoding="utf-8"))["bcs"]
+
+              d_decode = pct_delta(cur["decode_time_p95_ns"], base["decode_time_p95_ns"])
+              d_load = pct_delta(cur["load_time_p95_ns"], base["load_time_p95_ns"])
+              d_path = pct_delta(cur["random_access_avg_ns"], base["random_access_avg_ns"])
+              d_path_simple = pct_delta(cur.get("path_get_simple_p95_ns", 0), base.get("path_get_simple_p95_ns", 0))
+              d_path_deep = pct_delta(cur.get("path_get_deep_p95_ns", 0), base.get("path_get_deep_p95_ns", 0))
+              d_path_wild = pct_delta(cur.get("path_get_wildcard_p95_ns", 0), base.get("path_get_wildcard_p95_ns", 0))
+              d_path_hot = pct_delta(cur.get("path_get_hot_p95_ns", 0), base.get("path_get_hot_p95_ns", 0))
+              d_size = pct_delta(cur["file_size"], base["file_size"])
+
+              lines.append(
+                  f"| {name} | {d_decode:+.2f}% | {d_load:+.2f}% | {d_path:+.2f}% | {d_path_simple:+.2f}% | {d_path_deep:+.2f}% | {d_path_wild:+.2f}% | {d_path_hot:+.2f}% | {d_size:+.2f}% |"
+              )
+
+          lines.append("")
+          lines.append("### Path-Hot Run Deltas")
+          lines.append("")
+          lines.append("| Profile | Path hot p95 Δ (path-hot mode) |")
+          lines.append("|---|---:|")
+
+          for name, base_path, hot_cur_path in hot_profiles:
+              if not Path(base_path).exists() or not Path(hot_cur_path).exists():
+                  lines.append(f"| {name} | n/a |")
+                  continue
+
+              base = json.loads(Path(base_path).read_text(encoding="utf-8"))["bcs"]
+              hot_cur = json.loads(Path(hot_cur_path).read_text(encoding="utf-8"))["bcs"]
+
+              d_hot_only = pct_delta(hot_cur.get("path_get_hot_p95_ns", 0), base.get("path_get_hot_p95_ns", 0))
+              lines.append(f"| {name} | {d_hot_only:+.2f}% |")
+
+          summary = Path(os.environ["GITHUB_STEP_SUMMARY"])
+          summary.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload benchmark artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-gate-artifacts
+          path: |
+            benchmarks/baseline/*.json
+            benchmarks/current/*.json
+
+      - name: Fail workflow if gate failed
+        if: steps.bench_gate.outcome != 'success'
+        run: |
+          echo "Benchmark gate failed. See logs and summary above."
+          exit 1

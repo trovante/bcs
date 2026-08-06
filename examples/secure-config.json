@@ -1,0 +1,14 @@
+{
+  "server": {
+    "host": "localhost",
+    "port": 8080
+  },
+  "database": {
+    "name": "myapp",
+    "password": "change-me",
+    "connections": 10
+  },
+  "api": {
+    "token": "__bcs_secret_ref__:env:API_TOKEN"
+  }
+}

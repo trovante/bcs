@@ -1,0 +1,40 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+
+# Generic
+*.log
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# BCS files / local scratch
+*.bcs
+tmp/
+benchmarks/tmp/
+benchmarks/current/
+
+# Language bindings
+node_modules/
+bindings/python/**/__pycache__/
+bindings/typescript/dist/
+bindings/java/out/
+bindings/csharp/**/bin/
+bindings/csharp/**/obj/
+bindings/swift/.build/
+*.egg-info/
+.venv/
+
+# Fuzzing
+fuzz/target/
+fuzz/corpus/
+fuzz/artifacts/
+fuzz/Cargo.lock

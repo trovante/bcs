@@ -1,0 +1,56 @@
+[package]
+name = "bcs-cli"
+version = "0.1.0"
+edition = "2021"
+authors = ["BCS Contributors"]
+description = "Command-line tool for Binary Config Schema"
+license = "MIT"
+repository = "https://github.com/trovante/bcs"
+readme = "../README.md"
+
+[[bin]]
+name = "bcs"
+path = "src/main.rs"
+
+[features]
+default = ["secrets-vault"]
+secrets-vault = ["bcs-secrets/vault"]
+secrets-openbao = ["bcs-secrets/openbao"]
+secrets-aws = ["bcs-secrets/aws"]
+secrets-azure = ["bcs-secrets/azure"]
+secrets-gcp = ["bcs-secrets/gcp"]
+secrets-doppler = ["bcs-secrets/doppler"]
+secrets-infisical = ["bcs-secrets/infisical"]
+secrets-akeyless = ["bcs-secrets/akeyless"]
+secrets-bitwarden = ["bcs-secrets/bitwarden"]
+secrets-onepassword = ["bcs-secrets/onepassword"]
+secrets-kubernetes = ["bcs-secrets/kubernetes"]
+secrets-all = [
+    "secrets-vault",
+    "secrets-openbao",
+    "secrets-aws",
+    "secrets-azure",
+    "secrets-gcp",
+    "secrets-doppler",
+    "secrets-infisical",
+    "secrets-akeyless",
+    "secrets-bitwarden",
+    "secrets-onepassword",
+    "secrets-kubernetes",
+]
+
+[dependencies]
+bcs-core = { path = "../core", version = "0.1.0" }
+bcs-secrets = { path = "../secrets", version = "0.1.0" }
+clap = { version = "4.4", features = ["derive"] }
+anyhow = "1.0"
+base64 = "0.22"
+serde_json = "1.0"
+serde_yaml = "0.9"
+toml = "0.8"
+regex = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.0"
