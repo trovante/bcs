@@ -73,6 +73,16 @@ mod http_util;
 /// Shared locator helpers used by providers.
 pub mod locator;
 
+#[cfg(any(
+    feature = "vault",
+    feature = "aws",
+    feature = "azure",
+    feature = "gcp",
+    feature = "doppler",
+    feature = "infisical",
+    feature = "akeyless",
+    feature = "bitwarden"
+))]
 macro_rules! register_provider {
     ($registry:ident, $scheme:expr, $resolver:expr) => {{
         $registry.register($scheme, Arc::new($resolver));
@@ -182,6 +192,8 @@ pub fn registry_for_provider(provider: &str) -> Result<ResolverRegistry> {
 
 /// Provider names compiled into this build.
 pub fn available_providers() -> Vec<&'static str> {
+    // `mut` only used when optional provider features are enabled.
+    #[allow(unused_mut)]
     let mut names = vec!["env"];
     #[cfg(feature = "vault")]
     names.push("vault");
@@ -216,6 +228,8 @@ pub fn available_providers() -> Vec<&'static str> {
 
 /// Provider names that have a native [`KeyWrapper`] in this build.
 pub fn available_kms_providers() -> Vec<&'static str> {
+    // `mut` only used when optional KMS features are enabled.
+    #[allow(unused_mut)]
     let mut names = Vec::new();
     #[cfg(feature = "aws")]
     names.push("aws");
