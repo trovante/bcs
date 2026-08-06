@@ -38,7 +38,7 @@ jobs:
       BCS_GATE_PATH_WILDCARD_P95_PCT: 12
       BCS_GATE_PATH_HOT_P95_PCT: 8
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

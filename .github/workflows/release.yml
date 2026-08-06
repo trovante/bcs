@@ -72,7 +72,7 @@ jobs:
             artifact_name: bcs.exe
             asset_name: bcs-windows-x86_64
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve-tag.outputs.tag }}
 
@@ -118,7 +118,7 @@ jobs:
     needs: [resolve-tag, build-cli-binaries]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve-tag.outputs.tag }}
 
@@ -149,7 +149,7 @@ jobs:
     needs: [resolve-tag, github-release]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           ref: ${{ needs.resolve-tag.outputs.tag }}
 
