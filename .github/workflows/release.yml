@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing git tag to release (e.g. v0.1.0)'
+        required: true
+        type: string
+        default: 'v0.1.0'
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,8 +19,33 @@ permissions:
   contents: write
 
 jobs:
+  resolve-tag:
+    name: Resolve release tag
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.set.outputs.tag }}
+    steps:
+      - name: Set tag
+        id: set
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          case "$TAG" in
+            v*.*.*) ;;
+            *)
+              echo "Tag must look like vX.Y.Z, got: $TAG"
+              exit 1
+              ;;
+          esac
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG"
+
   build-cli-binaries:
     name: Build CLI - ${{ matrix.asset_name }}
+    needs: resolve-tag
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -41,6 +73,8 @@ jobs:
             asset_name: bcs-windows-x86_64
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -81,10 +115,12 @@ jobs:
 
   github-release:
     name: GitHub Release
-    needs: build-cli-binaries
+    needs: [resolve-tag, build-cli-binaries]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -95,12 +131,12 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ needs.resolve-tag.outputs.tag }}
+          name: Release ${{ needs.resolve-tag.outputs.tag }}
           body: |
             Alpha release of Binary Config Schema (BCS).
 
-            See [CHANGELOG.md](https://github.com/trovante/bcs/blob/${{ github.ref_name }}/CHANGELOG.md) for details.
+            See [CHANGELOG.md](https://github.com/trovante/bcs/blob/${{ needs.resolve-tag.outputs.tag }}/CHANGELOG.md) for details.
 
             **Install CLI from crates.io:** `cargo install bcs-cli`
             **MCP server:** `cargo install bcs-mcp`
@@ -110,10 +146,12 @@ jobs:
 
   publish-crates:
     name: Publish to crates.io
-    needs: github-release
+    needs: [resolve-tag, github-release]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve-tag.outputs.tag }}
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
