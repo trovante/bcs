@@ -12,7 +12,7 @@ This file tracks CI/CD files for the Rust-only BCS setup.
 
 ## GitHub Config and Docs
 
-- `.github/README.md`
+- `.github/CONFIGURATION.md`
 - `.github/CI-CD-SETUP.md`
 - `.github/CI-CD-SUMMARY.md`
 - `.github/QUICKSTART.md`
