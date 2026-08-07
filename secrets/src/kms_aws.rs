@@ -9,7 +9,7 @@
 
 use bcs_core::security::KeyWrapper;
 use bcs_core::{BCSError, Result};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -133,21 +133,21 @@ impl AwsKmsKeyWrapper {
             self.access_key, credential_scope, signed_headers, signature
         );
 
-        let mut request = ureq::post(&url)
-            .timeout(self.timeout)
-            .set("content-type", "application/x-amz-json-1.1")
-            .set("x-amz-target", target)
-            .set("x-amz-date", &datetime)
-            .set("authorization", &authorization);
+        let mut request = crate::http_util::agent(self.timeout)
+            .post(&url)
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", target)
+            .header("x-amz-date", &datetime)
+            .header("authorization", &authorization);
         if let Some(token) = &self.session_token {
-            request = request.set("x-amz-security-token", token);
+            request = request.header("x-amz-security-token", token);
         }
 
-        let response = request.send_string(body).map_err(|err| {
+        let mut response = request.send(body).map_err(|err| {
             BCSError::Decoding(format!("AWS KMS request failed: {}", redact_ureq(err)))
         })?;
-        let status = response.status();
-        let resp_body = response.into_string().map_err(|err| {
+        let status = response.status().as_u16();
+        let resp_body = response.body_mut().read_to_string().map_err(|err| {
             BCSError::Decoding(format!("Failed to read AWS KMS response: {}", err))
         })?;
         if !(200..300).contains(&status) {
@@ -279,7 +279,7 @@ fn aws4_signing_key(secret: &str, date: &str, region: &str, service: &str) -> Ve
 
 fn redact_ureq(err: ureq::Error) -> String {
     match err {
-        ureq::Error::Status(code, _) => format!("HTTP {}", code),
+        ureq::Error::StatusCode(code) => format!("HTTP {}", code),
         _ => "unavailable".to_string(),
     }
 }

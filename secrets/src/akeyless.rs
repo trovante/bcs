@@ -79,14 +79,14 @@ impl AkeylessSecretResolver {
         })
         .to_string();
 
-        let response = ureq::post(&url)
-            .timeout(self.timeout)
-            .set("content-type", "application/json")
-            .send_string(&body)
+        let mut response = crate::http_util::agent(self.timeout)
+            .post(&url)
+            .header("content-type", "application/json")
+            .send(&body)
             .map_err(|err| map_http_error("Akeyless", name, err))?;
 
-        let status = response.status();
-        let resp_body = response.into_string().map_err(|err| {
+        let status = response.status().as_u16();
+        let resp_body = response.body_mut().read_to_string().map_err(|err| {
             BCSError::Decoding(format!(
                 "Failed to read Akeyless response for '{}': {}",
                 name, err
@@ -158,16 +158,16 @@ fn auth_token(
     })
     .to_string();
 
-    let response = ureq::post(&url)
-        .timeout(timeout)
-        .set("content-type", "application/json")
-        .send_string(&body)
+    let mut response = crate::http_util::agent(timeout)
+        .post(&url)
+        .header("content-type", "application/json")
+        .send(&body)
         .map_err(|_| {
             BCSError::Decoding("Akeyless auth request failed (unavailable)".to_string())
         })?;
 
-    let status = response.status();
-    let resp_body = response.into_string().map_err(|err| {
+    let status = response.status().as_u16();
+    let resp_body = response.body_mut().read_to_string().map_err(|err| {
         BCSError::Decoding(format!("Failed to read Akeyless auth response: {}", err))
     })?;
     if !(200..300).contains(&status) {
@@ -188,7 +188,7 @@ fn auth_token(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::net::TcpListener;
     use std::thread;
 
@@ -219,9 +219,7 @@ mod tests {
 
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            let mut buf = [0u8; 8192];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let request = String::from_utf8_lossy(&buf[..n]);
+            let request = crate::http_util::read_http_request(&mut stream);
             assert!(request.contains("POST /get-secret-value"));
             assert!(request.contains("prod"));
             assert!(request

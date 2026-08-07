@@ -2,12 +2,13 @@ use crate::error::{BCSError, Result};
 use crate::index::{parse_path, PathSegment};
 use crate::limits;
 use crate::types::Value;
-use aes_gcm::aead::{Aead, KeyInit};
+use aes_gcm::aead::{Aead, AeadCore, KeyInit};
 use aes_gcm::{Aes256Gcm, Nonce};
 use base64::Engine;
 use pbkdf2::pbkdf2_hmac;
-use rand::RngCore;
 use sha2::Sha256;
+
+type Aes256Nonce = Nonce<<Aes256Gcm as AeadCore>::NonceSize>;
 
 /// Marker prefix for password-protected (`pbkdf2`) field values.
 pub const PREFIX_PBKDF2: &str = "__bcs_sensitive_pbkdf2__:";
@@ -466,8 +467,8 @@ fn encrypt_value_pbkdf2(value: &Value, password: &str) -> Result<String> {
 
     let mut salt = [0u8; SALT_LEN];
     let mut nonce_bytes = [0u8; NONCE_LEN];
-    rand::thread_rng().fill_bytes(&mut salt);
-    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    rand::fill(&mut salt);
+    rand::fill(&mut nonce_bytes);
 
     let key = derive_key(password, &salt, PBKDF2_ITERATIONS);
     let ciphertext = aes_encrypt(&key, &nonce_bytes, &plaintext)?;
@@ -492,8 +493,8 @@ fn encrypt_value_kms(
 
     let mut dek = [0u8; DEK_LEN];
     let mut nonce_bytes = [0u8; NONCE_LEN];
-    rand::thread_rng().fill_bytes(&mut dek);
-    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    rand::fill(&mut dek);
+    rand::fill(&mut nonce_bytes);
 
     let ciphertext = aes_encrypt(&dek, &nonce_bytes, &plaintext)?;
     let wrapped_dek = wrapper.wrap(provider, kek_locator, &dek)?;
@@ -524,20 +525,30 @@ fn encrypt_value_kms(
     Ok(marker_from_payload(PREFIX_KMS, &body))
 }
 
+fn aes_nonce(nonce_bytes: &[u8]) -> Result<Aes256Nonce> {
+    Aes256Nonce::try_from(nonce_bytes).map_err(|_| {
+        BCSError::Encoding(format!(
+            "Invalid AES-GCM nonce length: expected {}, got {}",
+            NONCE_LEN,
+            nonce_bytes.len()
+        ))
+    })
+}
+
 fn aes_encrypt(key: &[u8], nonce_bytes: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|e| BCSError::Encoding(format!("Failed to initialize cipher: {}", e)))?;
-    let nonce = Nonce::from_slice(nonce_bytes);
+    let nonce = aes_nonce(nonce_bytes)?;
     cipher
-        .encrypt(nonce, plaintext)
+        .encrypt(&nonce, plaintext)
         .map_err(|_| BCSError::Encoding("Failed to encrypt sensitive value".to_string()))
 }
 
 fn aes_decrypt(key: &[u8], nonce_bytes: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>> {
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|e| BCSError::Decoding(format!("Failed to initialize cipher: {}", e)))?;
-    let nonce = Nonce::from_slice(nonce_bytes);
-    cipher.decrypt(nonce, ciphertext).map_err(|_| {
+    let nonce = aes_nonce(nonce_bytes).map_err(|e| BCSError::Decoding(e.to_string()))?;
+    cipher.decrypt(&nonce, ciphertext).map_err(|_| {
         BCSError::Decoding("Failed to decrypt sensitive value (wrong password or key?)".to_string())
     })
 }

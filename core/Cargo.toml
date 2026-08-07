@@ -12,21 +12,21 @@ readme = "../README.md"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.9"
-toml = "0.8"
+toml = "1.1"
 rmp-serde = "1.1"  # MessagePack
 lz4 = "1.24"
 memmap2 = "0.9"
 xxhash-rust = { version = "0.8", features = ["xxh64"] }
-thiserror = "1.0"
-aes-gcm = "0.10"
-pbkdf2 = "0.12"
-sha2 = "0.10"
-rand = "0.8"
-base64 = "0.22"
+thiserror = "2.0"
+aes-gcm = "0.11"
+pbkdf2 = "0.13"
+sha2 = "0.11"
+rand = "0.10"
+base64 = "0.23"
 regex = "1"
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 tempfile = "3"
 
 [lib]

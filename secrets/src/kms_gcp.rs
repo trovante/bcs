@@ -63,16 +63,19 @@ impl GcpKmsKeyWrapper {
     }
 
     fn post_json(&self, url: &str, body: &str) -> Result<serde_json::Value> {
-        let response = ureq::post(url)
-            .timeout(self.timeout)
-            .set("Authorization", &format!("Bearer {}", self.access_token))
-            .set("Content-Type", "application/json")
-            .send_string(body)
+        let mut response = crate::http_util::agent(self.timeout)
+            .post(url)
+            .header("Authorization", &format!("Bearer {}", self.access_token))
+            .header("Content-Type", "application/json")
+            .send(body)
             .map_err(|err| {
-                BCSError::Decoding(format!("GCP KMS request failed: {}", status_only(err)))
+                BCSError::Decoding(format!(
+                    "GCP KMS request failed: {}",
+                    crate::http_util::status_only(err)
+                ))
             })?;
-        let status = response.status();
-        let resp = response.into_string().map_err(|err| {
+        let status = response.status().as_u16();
+        let resp = response.body_mut().read_to_string().map_err(|err| {
             BCSError::Decoding(format!("Failed to read GCP KMS response: {}", err))
         })?;
         if !(200..300).contains(&status) {
@@ -146,12 +149,5 @@ fn ensure_provider(provider: &str) -> Result<()> {
             "GcpKmsKeyWrapper does not handle provider '{}'",
             provider
         )))
-    }
-}
-
-fn status_only(err: ureq::Error) -> String {
-    match err {
-        ureq::Error::Status(code, _) => format!("HTTP {}", code),
-        _ => "unavailable".to_string(),
     }
 }

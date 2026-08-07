@@ -433,18 +433,17 @@ mod tests {
         #[cfg(unix)]
         {
             std::os::unix::fs::symlink(outside.path(), &link).unwrap();
+            let report = scan_path(dir.path(), ScanFailOn::Finding).unwrap();
+            assert!(
+                report.findings.is_empty(),
+                "symlink escape should be skipped: {:?}",
+                report.findings
+            );
         }
         #[cfg(not(unix))]
         {
-            let _ = (outside, link);
-            return;
+            let _ = (outside, link, dir);
         }
-        let report = scan_path(dir.path(), ScanFailOn::Finding).unwrap();
-        assert!(
-            report.findings.is_empty(),
-            "symlink escape should be skipped: {:?}",
-            report.findings
-        );
     }
 
     #[test]

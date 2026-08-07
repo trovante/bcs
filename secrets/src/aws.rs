@@ -12,7 +12,7 @@
 use crate::locator::{extract_secret_value, split_field};
 use bcs_core::secret_resolver::SecretResolver;
 use bcs_core::{BCSError, Result};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::{Digest, Sha256};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -141,22 +141,22 @@ impl AwsSecretResolver {
             self.access_key, credential_scope, signed_headers, signature
         );
 
-        let mut request = ureq::post(&url)
-            .timeout(self.timeout)
-            .set("content-type", "application/x-amz-json-1.1")
-            .set("x-amz-target", "secretsmanager.GetSecretValue")
-            .set("x-amz-date", &datetime)
-            .set("authorization", &authorization);
+        let mut request = crate::http_util::agent(self.timeout)
+            .post(&url)
+            .header("content-type", "application/x-amz-json-1.1")
+            .header("x-amz-target", "secretsmanager.GetSecretValue")
+            .header("x-amz-date", &datetime)
+            .header("authorization", &authorization);
 
         if let Some(token) = &self.session_token {
-            request = request.set("x-amz-security-token", token);
+            request = request.header("x-amz-security-token", token);
         }
 
-        let response = request
-            .send_string(&body)
+        let mut response = request
+            .send(&body)
             .map_err(|err| map_ureq_error(secret_id, err))?;
-        let status = response.status();
-        let resp_body = response.into_string().map_err(|err| {
+        let status = response.status().as_u16();
+        let resp_body = response.body_mut().read_to_string().map_err(|err| {
             BCSError::Decoding(format!(
                 "Failed to read AWS Secrets Manager response for '{}': {}",
                 secret_id, err
@@ -286,10 +286,7 @@ fn aws4_signing_key(secret: &str, date: &str, region: &str, service: &str) -> Ve
 
 fn map_ureq_error(secret_id: &str, err: ureq::Error) -> BCSError {
     match err {
-        ureq::Error::Status(code, response) => {
-            let body = response.into_string().unwrap_or_default();
-            classify_aws_http_error(secret_id, code, &body)
-        }
+        ureq::Error::StatusCode(code) => classify_aws_http_error(secret_id, code, ""),
         _other => BCSError::Decoding(format!(
             "AWS Secrets Manager request for '{}' failed (unavailable)",
             secret_id
@@ -318,7 +315,7 @@ fn classify_aws_http_error(secret_id: &str, status: u16, body: &str) -> BCSError
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::net::TcpListener;
     use std::thread;
 
@@ -355,9 +352,7 @@ mod tests {
 
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            let mut buf = [0u8; 8192];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let request = String::from_utf8_lossy(&buf[..n]);
+            let request = crate::http_util::read_http_request(&mut stream);
             assert!(
                 request.contains("POST /") || request.starts_with("POST"),
                 "unexpected request start: {}",

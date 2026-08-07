@@ -61,6 +61,8 @@ pub mod kms_gcp;
 pub mod kms_vault;
 
 #[cfg(any(
+    feature = "vault",
+    feature = "aws",
     feature = "azure",
     feature = "gcp",
     feature = "doppler",

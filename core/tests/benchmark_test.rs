@@ -69,11 +69,17 @@ fn benchmark_random_access_latency() -> Result<()> {
         lookup_count, total_duration
     );
 
-    // Target: < 1μs per lookup
+    // Soft local target is <10µs; CI shared runners are much noisier.
+    let max_ns = if std::env::var_os("CI").is_some() {
+        100_000.0
+    } else {
+        10_000.0
+    };
     assert!(
-        avg_latency < 10_000.0,
-        "Random access too slow: {:.2} ns",
-        avg_latency
+        avg_latency < max_ns,
+        "Random access too slow: {:.2} ns (limit {:.0})",
+        avg_latency,
+        max_ns
     );
 
     Ok(())

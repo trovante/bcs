@@ -26,7 +26,8 @@ class BCSError(RuntimeError):
 
 
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[2]
+    # bindings/python/bcs/__init__.py -> repo root is four levels up
+    return Path(__file__).resolve().parents[3]
 
 
 def _candidate_lib_paths() -> list[Path]:

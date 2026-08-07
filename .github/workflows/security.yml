@@ -32,6 +32,8 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Dependency Review
+        # Requires Dependency graph in repo settings; do not hard-fail new/public setups.
+        continue-on-error: true
         uses: actions/dependency-review-action@v4
 
   fuzz-smoke:
