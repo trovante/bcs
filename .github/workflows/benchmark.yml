@@ -29,12 +29,13 @@ jobs:
     timeout-minutes: 30
     env:
       BCS_BENCH_RUNS: 15
+      # Shared GHA runners routinely swing latency p95 by 15–25% between runs.
+      # Keep size as the hard CI gate; latency stays measured + summarized.
+      BCS_GATE_FAIL_ON_LATENCY: 0
       BCS_GATE_PATH_GET_P95_PCT: 8
       BCS_GATE_DECODE_P95_PCT: 10
       BCS_GATE_LOAD_P95_PCT: 10
       BCS_GATE_SIZE_PCT: 20
-      # Path thresholds are slightly looser than local defaults to absorb
-      # shared-runner variance on ubuntu-latest (see docs/performance-gates.md).
       BCS_GATE_PATH_SIMPLE_P95_PCT: 12
       BCS_GATE_PATH_DEEP_P95_PCT: 15
       BCS_GATE_PATH_WILDCARD_P95_PCT: 15
@@ -56,7 +57,6 @@ jobs:
 
       - name: Run benchmark gate
         id: bench_gate
-        continue-on-error: true
         run: ./scripts/bench-gate.sh
 
       - name: Collect current benchmark JSON artifacts
@@ -99,6 +99,7 @@ jobs:
           lines.append("")
           lines.append("### Active Thresholds")
           lines.append("")
+          lines.append(f"- fail on latency: {os.environ.get('BCS_GATE_FAIL_ON_LATENCY', '1')} (0 = size-only hard fail in CI)")
           lines.append(f"- path lookup proxy: +{os.environ.get('BCS_GATE_PATH_GET_P95_PCT', '8')}%")
           lines.append(f"- decode p95: +{os.environ.get('BCS_GATE_DECODE_P95_PCT', '10')}%")
           lines.append(f"- load p95: +{os.environ.get('BCS_GATE_LOAD_P95_PCT', '10')}%")
@@ -161,15 +162,3 @@ jobs:
           path: |
             benchmarks/baseline/*.json
             benchmarks/current/*.json
-
-      # Keep main push blocking; PR noise (shared runners) should not block merges.
-      - name: Fail workflow if gate failed
-        if: steps.bench_gate.outcome != 'success' && github.event_name != 'pull_request'
-        run: |
-          echo "Benchmark gate failed. See logs and summary above."
-          exit 1
-
-      - name: Warn on PR if gate failed
-        if: steps.bench_gate.outcome != 'success' && github.event_name == 'pull_request'
-        run: |
-          echo "::warning::Benchmark gate failed on this PR (non-blocking). See summary/artifacts."

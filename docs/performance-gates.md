@@ -56,11 +56,15 @@ These can be overridden via environment variables in CI:
 - `BCS_GATE_PATH_DEEP_P95_PCT` (default `8`)
 - `BCS_GATE_PATH_WILDCARD_P95_PCT` (default `12`)
 - `BCS_GATE_PATH_HOT_P95_PCT` (default `8`)
+- `BCS_GATE_FAIL_ON_LATENCY` (default `1`; set `0` for size-only hard fail)
 
-The Benchmark workflow on `ubuntu-latest` uses slightly wider path thresholds
-(`simple`/`hot` +12%, `deep`/`wildcard` +15%) because shared runners are noisier
-than a dedicated local machine. Prefer recording the `large` baseline on Linux
-(or from a green CI artifact) when refreshing checked-in numbers used by that gate.
+The Benchmark workflow on `ubuntu-latest` sets `BCS_GATE_FAIL_ON_LATENCY=0`,
+so latency regressions are reported in logs/summary but do not fail CI. File size
+remains a hard fail. Shared runners routinely move latency p95 by 15–25% between
+identical commits, which previously made post-squash `push` checks fail after a
+green PR. Prefer recording the `large` baseline on Linux (or from a CI artifact)
+when refreshing checked-in numbers; use `BCS_GATE_FAIL_ON_LATENCY=1` locally for
+a strict gate.
 
 ## Running the Gate Locally
 
