@@ -160,8 +160,14 @@ jobs:
             benchmarks/baseline/*.json
             benchmarks/current/*.json
 
+      # Keep main push blocking; PR noise (shared runners) should not block merges.
       - name: Fail workflow if gate failed
-        if: steps.bench_gate.outcome != 'success'
+        if: steps.bench_gate.outcome != 'success' && github.event_name != 'pull_request'
         run: |
           echo "Benchmark gate failed. See logs and summary above."
           exit 1
+
+      - name: Warn on PR if gate failed
+        if: steps.bench_gate.outcome != 'success' && github.event_name == 'pull_request'
+        run: |
+          echo "::warning::Benchmark gate failed on this PR (non-blocking). See summary/artifacts."
