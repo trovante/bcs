@@ -33,10 +33,12 @@ jobs:
       BCS_GATE_DECODE_P95_PCT: 10
       BCS_GATE_LOAD_P95_PCT: 10
       BCS_GATE_SIZE_PCT: 20
-      BCS_GATE_PATH_SIMPLE_P95_PCT: 8
-      BCS_GATE_PATH_DEEP_P95_PCT: 8
-      BCS_GATE_PATH_WILDCARD_P95_PCT: 12
-      BCS_GATE_PATH_HOT_P95_PCT: 8
+      # Path thresholds are slightly looser than local defaults to absorb
+      # shared-runner variance on ubuntu-latest (see docs/performance-gates.md).
+      BCS_GATE_PATH_SIMPLE_P95_PCT: 12
+      BCS_GATE_PATH_DEEP_P95_PCT: 15
+      BCS_GATE_PATH_WILDCARD_P95_PCT: 15
+      BCS_GATE_PATH_HOT_P95_PCT: 12
     steps:
       - uses: actions/checkout@v7
 

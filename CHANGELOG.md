@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Refresh `benchmarks/baseline/large.json` from GitHub Actions (ubuntu-latest)
+  measurements so the Benchmark gate is not compared against a Darwin arm64
+  baseline; slightly widen CI path-p95 thresholds for shared-runner noise.
+
 ## [0.1.0] - 2026-08-06
 
 Initial **alpha** release of Binary Config Schema (BCS): a Rust-first binary

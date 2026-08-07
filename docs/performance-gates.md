@@ -57,6 +57,11 @@ These can be overridden via environment variables in CI:
 - `BCS_GATE_PATH_WILDCARD_P95_PCT` (default `12`)
 - `BCS_GATE_PATH_HOT_P95_PCT` (default `8`)
 
+The Benchmark workflow on `ubuntu-latest` uses slightly wider path thresholds
+(`simple`/`hot` +12%, `deep`/`wildcard` +15%) because shared runners are noisier
+than a dedicated local machine. Prefer recording the `large` baseline on Linux
+(or from a green CI artifact) when refreshing checked-in numbers used by that gate.
+
 ## Running the Gate Locally
 
 ```bash
