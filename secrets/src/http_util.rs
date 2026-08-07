@@ -1,7 +1,19 @@
-//! Small HTTP helpers shared by remote secret providers.
+//! Small HTTP helpers shared by remote secret providers (ureq 3).
 
 use crate::locator::extract_secret_value;
 use bcs_core::{BCSError, Result};
+use std::time::Duration;
+use ureq::Agent;
+
+/// Build an agent that returns HTTP error responses instead of `Error::StatusCode`,
+/// matching the ureq 2 call-site pattern of inspecting `status` + body.
+pub fn agent(timeout: Duration) -> Agent {
+    Agent::config_builder()
+        .timeout_global(Some(timeout))
+        .http_status_as_error(false)
+        .build()
+        .into()
+}
 
 pub fn finalize_optional_json_field(
     scheme: &str,
@@ -48,10 +60,7 @@ pub fn finalize_optional_json_field(
 
 pub fn map_http_error(provider: &str, resource: &str, err: ureq::Error) -> BCSError {
     match err {
-        ureq::Error::Status(code, response) => {
-            let body = response.into_string().unwrap_or_default();
-            classify_status(provider, resource, code, &body)
-        }
+        ureq::Error::StatusCode(code) => classify_status(provider, resource, code, ""),
         _ => BCSError::Decoding(format!(
             "{} request for '{}' failed (unavailable)",
             provider, resource
@@ -76,4 +85,56 @@ pub fn classify_status(provider: &str, resource: &str, status: u16, body: &str) 
         "{} request for '{}' failed ({})",
         provider, resource, kind
     ))
+}
+
+pub fn status_only(err: ureq::Error) -> String {
+    match err {
+        ureq::Error::StatusCode(code) => format!("HTTP {}", code),
+        other => other.to_string(),
+    }
+}
+
+/// Read a full HTTP/1.1 request (headers + Content-Length body) from a mock TCP stream.
+///
+/// ureq 3 may deliver headers and body in separate packets; a single `read` is not enough
+/// for POST mocks that assert on the JSON body.
+#[cfg(test)]
+pub fn read_http_request(stream: &mut impl std::io::Read) -> String {
+    let mut data = Vec::new();
+    let mut buf = [0u8; 4096];
+    loop {
+        let n = stream.read(&mut buf).unwrap_or(0);
+        if n == 0 {
+            break;
+        }
+        data.extend_from_slice(&buf[..n]);
+        if data.windows(4).any(|w| w == b"\r\n\r\n") {
+            break;
+        }
+    }
+
+    let header_end = data
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|i| i + 4)
+        .unwrap_or(data.len());
+    let headers = String::from_utf8_lossy(&data[..header_end]);
+    let content_length = headers.lines().find_map(|line| {
+        let lower = line.to_ascii_lowercase();
+        lower
+            .strip_prefix("content-length:")
+            .and_then(|v| v.trim().parse::<usize>().ok())
+    });
+
+    if let Some(len) = content_length {
+        while data.len() < header_end + len {
+            let n = stream.read(&mut buf).unwrap_or(0);
+            if n == 0 {
+                break;
+            }
+            data.extend_from_slice(&buf[..n]);
+        }
+    }
+
+    String::from_utf8_lossy(&data).into_owned()
 }

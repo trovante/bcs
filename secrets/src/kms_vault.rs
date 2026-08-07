@@ -106,22 +106,22 @@ impl VaultTransitKeyWrapper {
 
     fn post_json(&self, path: &str, body: &str) -> Result<serde_json::Value> {
         let url = format!("{}/v1/{}", self.addr, path.trim_start_matches('/'));
-        let mut request = ureq::post(&url)
-            .timeout(self.timeout)
-            .set("X-Vault-Token", &self.token)
-            .set("Content-Type", "application/json");
+        let mut request = crate::http_util::agent(self.timeout)
+            .post(&url)
+            .header("X-Vault-Token", &self.token)
+            .header("Content-Type", "application/json");
         if let Some(ns) = &self.namespace {
-            request = request.set("X-Vault-Namespace", ns);
+            request = request.header("X-Vault-Namespace", ns);
         }
-        let response = request.send_string(body).map_err(|err| {
+        let mut response = request.send(body).map_err(|err| {
             BCSError::Decoding(format!(
                 "{} transit request failed: {}",
                 self.provider_label,
-                status_only(err)
+                crate::http_util::status_only(err)
             ))
         })?;
-        let status = response.status();
-        let resp = response.into_string().map_err(|err| {
+        let status = response.status().as_u16();
+        let resp = response.body_mut().read_to_string().map_err(|err| {
             BCSError::Decoding(format!("Failed to read transit response: {}", err))
         })?;
         if !(200..300).contains(&status) {
@@ -217,11 +217,4 @@ impl VaultTransitKeyWrapper {
 fn first_env(keys: &[&str]) -> Option<String> {
     keys.iter()
         .find_map(|k| std::env::var(k).ok().filter(|s| !s.is_empty()))
-}
-
-fn status_only(err: ureq::Error) -> String {
-    match err {
-        ureq::Error::Status(code, _) => format!("HTTP {}", code),
-        _ => "unavailable".to_string(),
-    }
 }

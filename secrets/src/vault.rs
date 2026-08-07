@@ -114,20 +114,20 @@ impl VaultSecretResolver {
 
     fn fetch_json(&self, path: &str) -> Result<serde_json::Value> {
         let url = format!("{}/v1/{}", self.addr, path.trim_start_matches('/'));
-        let mut request = ureq::get(&url)
-            .set("X-Vault-Token", &self.token)
-            .timeout(self.timeout);
+        let mut request = crate::http_util::agent(self.timeout)
+            .get(&url)
+            .header("X-Vault-Token", &self.token);
 
         if let Some(ns) = &self.namespace {
-            request = request.set("X-Vault-Namespace", ns);
+            request = request.header("X-Vault-Namespace", ns);
         }
 
-        let response = request
+        let mut response = request
             .call()
             .map_err(|err| map_vault_http_error(path, err))?;
 
-        let status = response.status();
-        let body = response.into_string().map_err(|err| {
+        let status = response.status().as_u16();
+        let body = response.body_mut().read_to_string().map_err(|err| {
             BCSError::Decoding(format!(
                 "Failed to read Vault/OpenBao response for '{}': {}",
                 path, err
@@ -199,15 +199,10 @@ fn extract_vault_data(
 
 fn map_vault_http_error(path: &str, err: ureq::Error) -> BCSError {
     match err {
-        ureq::Error::Status(code, response) => {
-            let body = response.into_string().unwrap_or_default();
-            BCSError::Decoding(format!(
-                "Vault request for '{}' failed with HTTP {}{}",
-                path,
-                code,
-                sanitize_vault_error_body(&body)
-            ))
-        }
+        ureq::Error::StatusCode(code) => BCSError::Decoding(format!(
+            "Vault request for '{}' failed with HTTP {}",
+            path, code
+        )),
         other => BCSError::Decoding(format!(
             "Vault request for '{}' failed: {}",
             path,
@@ -237,7 +232,7 @@ fn sanitize_vault_error_body(body: &str) -> String {
 mod tests {
     use super::*;
     use serde_json::json;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::net::TcpListener;
     use std::thread;
 
@@ -257,11 +252,11 @@ mod tests {
 
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            let mut buf = [0u8; 4096];
-            let _ = stream.read(&mut buf);
-            let request = String::from_utf8_lossy(&buf);
+            let request = crate::http_util::read_http_request(&mut stream);
             assert!(request.contains("GET /v1/secret/data/myapp"));
-            assert!(request.contains("X-Vault-Token: test-token"));
+            assert!(request
+                .to_ascii_lowercase()
+                .contains("x-vault-token: test-token"));
 
             let body = r#"{"data":{"data":{"password":"from-vault"}}}"#;
             let response = format!(

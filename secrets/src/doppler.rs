@@ -116,15 +116,15 @@ impl DopplerSecretResolver {
             urlencoding_lite(&name)
         );
 
-        let response = ureq::get(&url)
-            .timeout(self.timeout)
-            .set("Authorization", &format!("Bearer {}", self.token))
-            .set("accept", "application/json")
+        let mut response = crate::http_util::agent(self.timeout)
+            .get(&url)
+            .header("Authorization", &format!("Bearer {}", self.token))
+            .header("accept", "application/json")
             .call()
             .map_err(|err| map_http_error("Doppler", resource, err))?;
 
-        let status = response.status();
-        let body = response.into_string().map_err(|err| {
+        let status = response.status().as_u16();
+        let body = response.body_mut().read_to_string().map_err(|err| {
             BCSError::Decoding(format!(
                 "Failed to read Doppler response for '{}': {}",
                 resource, err
@@ -186,7 +186,7 @@ fn urlencoding_lite(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Read, Write};
+    use std::io::Write;
     use std::net::TcpListener;
     use std::thread;
 
@@ -208,9 +208,7 @@ mod tests {
 
         let server = thread::spawn(move || {
             let (mut stream, _) = listener.accept().unwrap();
-            let mut buf = [0u8; 8192];
-            let n = stream.read(&mut buf).unwrap_or(0);
-            let request = String::from_utf8_lossy(&buf[..n]);
+            let request = crate::http_util::read_http_request(&mut stream);
             assert!(request.contains("GET /v3/configs/config/secret?"));
             assert!(request.contains("project=proj"));
             assert!(request.contains("config=dev"));
