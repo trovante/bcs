@@ -106,9 +106,7 @@ impl StringTable {
         self.strings
             .get(id as usize)
             .map(|s| s.as_str())
-            .ok_or_else(|| {
-                BCSError::Decoding(format!("Interned string id {} out of range", id))
-            })
+            .ok_or_else(|| BCSError::Decoding(format!("Interned string id {} out of range", id)))
     }
 
     pub fn as_arc(self) -> Arc<Self> {
@@ -149,9 +147,8 @@ impl StringTable {
             }
             let mut buf = vec![0u8; len];
             reader.read_exact(&mut buf)?;
-            let s = String::from_utf8(buf).map_err(|e| {
-                BCSError::Decoding(format!("Invalid UTF-8 in string table: {}", e))
-            })?;
+            let s = String::from_utf8(buf)
+                .map_err(|e| BCSError::Decoding(format!("Invalid UTF-8 in string table: {}", e)))?;
             table.index.insert(s.clone(), i as u32);
             table.strings.push(s);
         }
@@ -177,7 +174,12 @@ impl StringTable {
     }
 }
 
-fn collect_counts(value: &Value, mode: DedupMode, counts: &mut HashMap<String, usize>, depth: usize) {
+fn collect_counts(
+    value: &Value,
+    mode: DedupMode,
+    counts: &mut HashMap<String, usize>,
+    depth: usize,
+) {
     if depth > crate::limits::MAX_NESTING_DEPTH {
         return;
     }
@@ -232,10 +234,10 @@ mod tests {
 
     #[test]
     fn round_trip_bytes() {
-        let mut table = StringTable::default();
-        table.strings = vec!["one".into(), "two".into()];
-        table.index.insert("one".into(), 0);
-        table.index.insert("two".into(), 1);
+        let table = StringTable {
+            strings: vec!["one".into(), "two".into()],
+            index: [("one".into(), 0), ("two".into(), 1)].into_iter().collect(),
+        };
         let bytes = table.to_bytes().unwrap();
         let decoded = StringTable::from_bytes(&bytes).unwrap();
         assert_eq!(decoded.get(0).unwrap(), "one");

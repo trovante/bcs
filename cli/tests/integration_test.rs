@@ -1575,8 +1575,7 @@ fn test_kms_protect_and_decode_via_command_wrapper() {
     fs::write(&input, r#"{"database":{"password":"kms-cli-secret"}}"#).expect("write input");
     fs::write(
         &wrapper_script,
-        r#"#!/usr/bin/env python3
-import base64, sys
+        r#"import base64, sys
 data = base64.b64decode(sys.stdin.read().strip())
 sys.stdout.write(base64.b64encode(bytes(b ^ 0xA5 for b in data)).decode())
 "#,
@@ -1584,7 +1583,9 @@ sys.stdout.write(base64.b64encode(bytes(b ^ 0xA5 for b in data)).decode())
     .expect("write wrapper script");
 
     let script = wrapper_script.to_str().unwrap();
-    let wrap_cmd = format!("python3 {}", script);
+    // Windows runners expose `python`; Unix CI uses `python3`.
+    let python = if cfg!(windows) { "python" } else { "python3" };
+    let wrap_cmd = format!("{python} {script}");
 
     Command::new(assert_cmd::cargo::cargo_bin!("bcs"))
         .arg("encode")
@@ -1648,7 +1649,10 @@ fn test_missing_required_args() {
 
 #[test]
 fn test_schema_agent_safe_and_sensitive_paths() {
-    let input = temp_dir_file("agent_safe_input.json", r#"{"database":{"password":"plain"},"host":"db"}"#);
+    let input = temp_dir_file(
+        "agent_safe_input.json",
+        r#"{"database":{"password":"plain"},"host":"db"}"#,
+    );
     let bcs_file = temp_output_path("agent_safe.bcs");
     cleanup_test_file(&bcs_file);
 
@@ -1687,10 +1691,7 @@ fn test_schema_agent_safe_and_sensitive_paths() {
 
 #[test]
 fn test_scan_detects_aws_key_in_json() {
-    let input = temp_dir_file(
-        "scan_leak.json",
-        r#"{"aws_key":"AKIAIOSFODNN7EXAMPLE"}"#,
-    );
+    let input = temp_dir_file("scan_leak.json", r#"{"aws_key":"AKIAIOSFODNN7EXAMPLE"}"#);
     Command::new(assert_cmd::cargo::cargo_bin!("bcs"))
         .args(["scan", input.to_str().unwrap(), "--json"])
         .assert()
@@ -1798,7 +1799,9 @@ fn test_run_prefix_and_only_dry_run() {
         .assert()
         .success()
         .stdout(predicate::str::contains("APP_DATABASE__HOST=db"))
-        .stdout(predicate::str::contains("APP_DATABASE__PASSWORD=[REDACTED]"))
+        .stdout(predicate::str::contains(
+            "APP_DATABASE__PASSWORD=[REDACTED]",
+        ))
         .stdout(predicate::str::contains("API__PORT").not())
         .stdout(predicate::str::contains("secret").not());
 
@@ -1832,18 +1835,18 @@ fn test_env_command_redacts_by_default() {
         .assert()
         .success()
         .stdout(predicate::str::contains("APP_HOST='db'"))
-        .stdout(predicate::str::contains("APP_DATABASE__PASSWORD='[REDACTED]'"))
+        .stdout(predicate::str::contains(
+            "APP_DATABASE__PASSWORD='[REDACTED]'",
+        ))
         .stdout(predicate::str::contains("should-not-print").not());
 
     Command::new(assert_cmd::cargo::cargo_bin!("bcs"))
-        .args([
-            "env",
-            bcs_file.to_str().unwrap(),
-            "--allow-sensitive",
-        ])
+        .args(["env", bcs_file.to_str().unwrap(), "--allow-sensitive"])
         .assert()
         .success()
-        .stdout(predicate::str::contains("DATABASE__PASSWORD='should-not-print'"))
+        .stdout(predicate::str::contains(
+            "DATABASE__PASSWORD='should-not-print'",
+        ))
         .stderr(predicate::str::contains("warning: --allow-sensitive"));
 
     cleanup_test_file(&input);
@@ -1852,10 +1855,7 @@ fn test_env_command_redacts_by_default() {
 
 #[test]
 fn test_run_injects_env_into_child() {
-    let input = temp_dir_file(
-        "run_inject.json",
-        r#"{"greeting":"hello-bcs"}"#,
-    );
+    let input = temp_dir_file("run_inject.json", r#"{"greeting":"hello-bcs"}"#);
     let bcs_file = temp_output_path("run_inject.bcs");
     cleanup_test_file(&bcs_file);
 
@@ -1869,18 +1869,20 @@ fn test_run_injects_env_into_child() {
         .assert()
         .success();
 
-    // `printenv` is portable enough on macOS/Linux CI
-    Command::new(assert_cmd::cargo::cargo_bin!("bcs"))
-        .args([
-            "run",
-            bcs_file.to_str().unwrap(),
-            "--prefix",
-            "BCS_TEST_",
-            "--",
-            "printenv",
-            "BCS_TEST_GREETING",
-        ])
-        .assert()
+    // Child command must exist on every CI OS (`printenv` is Unix-only).
+    let mut run = Command::new(assert_cmd::cargo::cargo_bin!("bcs"));
+    run.args([
+        "run",
+        bcs_file.to_str().unwrap(),
+        "--prefix",
+        "BCS_TEST_",
+        "--",
+    ]);
+    #[cfg(windows)]
+    run.args(["cmd", "/C", "echo %BCS_TEST_GREETING%"]);
+    #[cfg(not(windows))]
+    run.args(["printenv", "BCS_TEST_GREETING"]);
+    run.assert()
         .success()
         .stdout(predicate::str::contains("hello-bcs"));
 
@@ -1888,14 +1890,11 @@ fn test_run_injects_env_into_child() {
     cleanup_test_file(&bcs_file);
 }
 
-
 #[test]
 fn test_encode_dedup_roundtrip_via_decode() {
     let json = format!(
         r#"{{"a":"{}","b":"{}","c":"{}"}}"#,
-        "shared-value-zzzz",
-        "shared-value-zzzz",
-        "shared-value-zzzz"
+        "shared-value-zzzz", "shared-value-zzzz", "shared-value-zzzz"
     );
     let input = temp_dir_file("dedup_input.json", &json);
     let bcs_file = temp_output_path("dedup.bcs");
@@ -1923,7 +1922,14 @@ fn test_encode_dedup_roundtrip_via_decode() {
         .success();
 
     Command::new(assert_cmd::cargo::cargo_bin!("bcs"))
-        .args(["decode", bcs_file.to_str().unwrap(), "--path", "a", "-f", "json"])
+        .args([
+            "decode",
+            bcs_file.to_str().unwrap(),
+            "--path",
+            "a",
+            "-f",
+            "json",
+        ])
         .assert()
         .success()
         .stdout(predicate::str::contains("shared-value-zzzz"));
@@ -2076,4 +2082,3 @@ fn temp_dir_file(name: &str, contents: &str) -> PathBuf {
     fs::write(&path, contents).expect("write temp file");
     path
 }
-

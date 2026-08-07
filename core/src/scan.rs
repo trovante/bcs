@@ -73,9 +73,8 @@ impl ScanReport {
     }
 
     pub fn to_json_pretty(&self) -> Result<String> {
-        serde_json::to_string_pretty(self).map_err(|e| {
-            BCSError::Decoding(format!("Failed to serialize scan report: {}", e))
-        })
+        serde_json::to_string_pretty(self)
+            .map_err(|e| BCSError::Decoding(format!("Failed to serialize scan report: {}", e)))
     }
 }
 
@@ -97,15 +96,14 @@ pub fn scan_path(path: &Path, fail_on: ScanFailOn) -> Result<ScanReport> {
 }
 
 fn scan_dir(dir: &Path, findings: &mut Vec<ScanFinding>) -> Result<()> {
-    let entries = fs::read_dir(dir).map_err(|e| {
-        BCSError::Decoding(format!("read dir {}: {}", dir.display(), e))
-    })?;
+    let entries = fs::read_dir(dir)
+        .map_err(|e| BCSError::Decoding(format!("read dir {}: {}", dir.display(), e)))?;
     for entry in entries {
         let entry = entry.map_err(|e| BCSError::Decoding(format!("read dir entry: {}", e)))?;
         let path = entry.path();
-        let file_type = entry.file_type().map_err(|e| {
-            BCSError::Decoding(format!("file type {}: {}", path.display(), e))
-        })?;
+        let file_type = entry
+            .file_type()
+            .map_err(|e| BCSError::Decoding(format!("file type {}: {}", path.display(), e)))?;
         // Do not follow symlinks (prevents escaping the intended scan root).
         if file_type.is_symlink() {
             continue;
@@ -138,9 +136,8 @@ fn scan_file(path: &Path, findings: &mut Vec<ScanFinding>) -> Result<()> {
 }
 
 fn scan_text_source(path: &Path, findings: &mut Vec<ScanFinding>) -> Result<()> {
-    let content = fs::read_to_string(path).map_err(|e| {
-        BCSError::Decoding(format!("read {}: {}", path.display(), e))
-    })?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| BCSError::Decoding(format!("read {}: {}", path.display(), e)))?;
     let location = path.display().to_string();
 
     for (kind, re) in secret_patterns() {
@@ -167,13 +164,12 @@ fn scan_text_source(path: &Path, findings: &mut Vec<ScanFinding>) -> Result<()> 
 
 fn scan_bcs(path: &Path, findings: &mut Vec<ScanFinding>) -> Result<()> {
     let location = path.display().to_string();
-    let mut decoder = Decoder::from_file(path).map_err(|e| {
-        BCSError::Decoding(format!("open BCS {}: {}", location, e))
-    })?;
+    let mut decoder = Decoder::from_file(path)
+        .map_err(|e| BCSError::Decoding(format!("open BCS {}: {}", location, e)))?;
     let schema = decoder.schema().ok().cloned();
-    let value = decoder.decode_to_value().map_err(|e| {
-        BCSError::Decoding(format!("decode BCS {}: {}", location, e))
-    })?;
+    let value = decoder
+        .decode_to_value()
+        .map_err(|e| BCSError::Decoding(format!("decode BCS {}: {}", location, e)))?;
 
     if let Some(schema) = schema {
         let plaintext = find_sensitive_plaintext(&schema, &value)?;
@@ -205,7 +201,11 @@ fn walk_value_secrets(
             }
             check_string_patterns(s, path, file, findings);
             let leaf = path.rsplit('.').next().unwrap_or(path).to_ascii_lowercase();
-            let leaf = leaf.trim_end_matches(']').rsplit('[').next().unwrap_or(&leaf);
+            let leaf = leaf
+                .trim_end_matches(']')
+                .rsplit('[')
+                .next()
+                .unwrap_or(&leaf);
             if looks_like_secret_key(leaf) && s.len() >= 8 {
                 findings.push(ScanFinding {
                     severity: "warn",
@@ -376,8 +376,7 @@ fn parse_source_to_json(content: &str, ext: &str) -> Result<serde_json::Value> {
         "toml" => {
             let v: toml::Value = toml::from_str(content)
                 .map_err(|e| BCSError::Decoding(format!("TOML parse: {}", e)))?;
-            serde_json::to_value(v)
-                .map_err(|e| BCSError::Decoding(format!("TOML to JSON: {}", e)))
+            serde_json::to_value(v).map_err(|e| BCSError::Decoding(format!("TOML to JSON: {}", e)))
         }
         _ => Err(BCSError::Decoding("unsupported source format".into())),
     }
@@ -393,11 +392,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("leak.json");
         let mut f = std::fs::File::create(&path).unwrap();
-        writeln!(
-            f,
-            r#"{{"key":"AKIAIOSFODNN7EXAMPLE"}}"#
-        )
-        .unwrap();
+        writeln!(f, r#"{{"key":"AKIAIOSFODNN7EXAMPLE"}}"#).unwrap();
         let report = scan_path(&path, ScanFailOn::Finding).unwrap();
         assert!(!report.ok);
         assert!(report
@@ -456,11 +451,7 @@ mod tests {
     fn scan_warns_unmarked_password_field() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("warn.json");
-        std::fs::write(
-            &path,
-            r#"{"database":{"password":"supersecret"}}"#,
-        )
-        .unwrap();
+        std::fs::write(&path, r#"{"database":{"password":"supersecret"}}"#).unwrap();
         let report = scan_path(&path, ScanFailOn::Warn).unwrap();
         assert!(report
             .findings
@@ -468,4 +459,3 @@ mod tests {
             .any(|f| f.kind == "unmarked_secret_intent"));
     }
 }
-

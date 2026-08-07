@@ -2,9 +2,7 @@
 
 use crate::utils;
 use anyhow::{Context, Result};
-use bcs_core::schema::{
-    find_sensitive_plaintext_under, redact_sensitive_plaintext_under,
-};
+use bcs_core::schema::{find_sensitive_plaintext_under, redact_sensitive_plaintext_under};
 use bcs_core::Decoder;
 use std::io::{self, IsTerminal};
 

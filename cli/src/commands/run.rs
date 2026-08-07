@@ -177,13 +177,9 @@ fn prepare_env(
     let wrapper = kms_wrapper.as_ref().map(|w| w.as_ref() as &dyn KeyWrapper);
 
     if resolved_password.is_some() || wrapper.is_some() {
-        bcs_core::security::reveal_all_ex(
-            &mut value,
-            resolved_password.as_deref(),
-            wrapper,
-        )
-        .map_err(anyhow::Error::msg)
-        .context("Failed to reveal protected fields")?;
+        bcs_core::security::reveal_all_ex(&mut value, resolved_password.as_deref(), wrapper)
+            .map_err(anyhow::Error::msg)
+            .context("Failed to reveal protected fields")?;
     }
 
     if resolve_secrets {
@@ -443,7 +439,10 @@ mod tests {
             ]),
         )]);
         let flat = flatten_env(&value, "");
-        assert_eq!(flat.get("DATABASE__HOST").map(String::as_str), Some("db.local"));
+        assert_eq!(
+            flat.get("DATABASE__HOST").map(String::as_str),
+            Some("db.local")
+        );
         assert_eq!(flat.get("DATABASE__PORT").map(String::as_str), Some("5432"));
     }
 

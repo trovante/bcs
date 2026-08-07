@@ -119,12 +119,11 @@ impl BcsMcp {
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for BcsMcp {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_instructions(
-                "BCS MCP: agent-safe tools for Binary Config Schema. \
+        ServerInfo::new(ServerCapabilities::builder().enable_tools().build()).with_instructions(
+            "BCS MCP: agent-safe tools for Binary Config Schema. \
                  Prefer bcs_schema / bcs_inspect_meta / bcs_validate / bcs_scan / bcs_get_path. \
                  Never ask humans for protect passwords or KMS unwrap secrets. \
                  Path reads are always masked.",
-            )
+        )
     }
 }

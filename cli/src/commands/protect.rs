@@ -116,8 +116,7 @@ pub fn run(
     let json_value2 = bcs_core::convert::value_to_json(&value2)
         .map_err(anyhow::Error::msg)
         .context("Failed to convert stamped value tree")?;
-    let json2 =
-        serde_json::to_string(&json_value2).context("Failed to serialize stamped JSON")?;
+    let json2 = serde_json::to_string(&json_value2).context("Failed to serialize stamped JSON")?;
     let mut encoder2 = Encoder::with_config(cfg).with_schema(schema);
     let output_data = encoder2
         .encode_from_json(&json2)

@@ -130,7 +130,7 @@ mod tests {
     impl CommandRunner for FakeKubectl {
         fn run(&self, program: &str, args: &[&str]) -> Result<CommandOutput> {
             assert_eq!(program, "kubectl");
-            assert_eq!(args.get(0).copied(), Some("get"));
+            assert_eq!(args.first().copied(), Some("get"));
             assert_eq!(args.get(1).copied(), Some("secret"));
             if self.success {
                 Ok(CommandOutput::ok_stdout(self.b64.clone()))
@@ -184,7 +184,10 @@ mod tests {
                 stderr: "NotFound".into(),
             }),
         );
-        let err = r.resolve("kubernetes", "ns/name/key").unwrap_err().to_string();
+        let err = r
+            .resolve("kubernetes", "ns/name/key")
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("NotFound"), "{err}");
     }
 

@@ -70,10 +70,7 @@ fn dedup_keys_and_path_get() {
     assert!(decoder.header().flags.structural_dedup);
 
     let value = decoder.get("svc_5.tier").expect("path get");
-    assert_eq!(
-        value,
-        bcs_core::types::Value::String("production".into())
-    );
+    assert_eq!(value, bcs_core::types::Value::String("production".into()));
 }
 
 #[test]

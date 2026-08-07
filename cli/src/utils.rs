@@ -216,7 +216,10 @@ pub fn resolve_password_with_prompt(
         if p.is_empty() {
             anyhow::bail!("Password cannot be empty");
         }
-        warn_password_on_argv("--password / --protect-password", "--password-env / --protect-password-env");
+        warn_password_on_argv(
+            "--password / --protect-password",
+            "--password-env / --protect-password-env",
+        );
         return Ok(p.to_string());
     }
 

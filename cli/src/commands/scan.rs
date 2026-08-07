@@ -14,9 +14,7 @@ pub fn run(target: &str, json_output: bool, fail_on: FailOn) -> Result<()> {
     if json_output {
         println!(
             "{}",
-            report
-                .to_json_pretty()
-                .context("serialize scan JSON")?
+            report.to_json_pretty().context("serialize scan JSON")?
         );
     } else if report.findings.is_empty() {
         utils::print_success("Scan clean — no findings.");

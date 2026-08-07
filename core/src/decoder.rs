@@ -184,7 +184,12 @@ impl Decoder {
         if self.index_table.is_none() {
             self.load_index_table()?;
         }
-        if self.index_table.as_ref().map(|t| t.is_empty()).unwrap_or(true) {
+        if self
+            .index_table
+            .as_ref()
+            .map(|t| t.is_empty())
+            .unwrap_or(true)
+        {
             return Ok(Vec::new());
         }
         self.get_index_entries()
@@ -796,7 +801,6 @@ impl Decoder {
 
         Ok(parsed)
     }
-
 }
 
 /// Relative offset of a struct field's value payload within `struct_bytes` (which starts at tag `0x42`).

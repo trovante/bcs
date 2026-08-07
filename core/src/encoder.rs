@@ -559,10 +559,7 @@ impl Encoder {
 
         // String table section (between index and data)
         let string_table_bytes = if use_dedup {
-            self.string_table
-                .as_ref()
-                .unwrap()
-                .to_bytes()?
+            self.string_table.as_ref().unwrap().to_bytes()?
         } else {
             Vec::new()
         };
@@ -640,7 +637,12 @@ impl Encoder {
     }
 
     /// Register nested field offsets for large structs/maps when `index_maps_over` is set.
-    fn maybe_index_nested(&mut self, parent: &str, value: &Value, parent_offset: u64) -> Result<()> {
+    fn maybe_index_nested(
+        &mut self,
+        parent: &str,
+        value: &Value,
+        parent_offset: u64,
+    ) -> Result<()> {
         let Some(threshold) = self.config.index_maps_over else {
             return Ok(());
         };
@@ -651,9 +653,11 @@ impl Encoder {
                 let table = self.string_table.clone();
                 let mut nested = Vec::new();
                 for (name, _, _) in fields {
-                    if let Ok(rel) =
-                        crate::decoder::nested_struct_field_relative_offset_ex(&slice, name, table.clone())
-                    {
+                    if let Ok(rel) = crate::decoder::nested_struct_field_relative_offset_ex(
+                        &slice,
+                        name,
+                        table.clone(),
+                    ) {
                         nested.push((format!("{}.{}", parent, name), parent_offset + rel));
                     }
                 }

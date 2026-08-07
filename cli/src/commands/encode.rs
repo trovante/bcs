@@ -61,8 +61,7 @@ pub fn run(
     }
 
     if let Some(mode_raw) = dedup {
-        let mode = bcs_core::DedupMode::parse(mode_raw)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let mode = bcs_core::DedupMode::parse(mode_raw).map_err(|e| anyhow::anyhow!("{}", e))?;
         if mode.is_enabled() {
             utils::print_info(&format!(
                 "Structural dedup enabled: {:?} (min_repeats={}, min_length={})",
@@ -382,9 +381,15 @@ fn protect_bcs_payload(
             let wrapper = wrapper.ok_or_else(|| {
                 anyhow::anyhow!("KMS command wrapper is required for kms protect scheme")
             })?;
-            bcs_core::security::protect_paths_kms(&mut value, protect_paths, provider, key, wrapper)
-                .map_err(anyhow::Error::msg)
-                .context("Sensitive field KMS protection failed")?;
+            bcs_core::security::protect_paths_kms(
+                &mut value,
+                protect_paths,
+                provider,
+                key,
+                wrapper,
+            )
+            .map_err(anyhow::Error::msg)
+            .context("Sensitive field KMS protection failed")?;
         }
         other => anyhow::bail!("Unsupported protect scheme '{}'. Use pbkdf2 or kms", other),
     }

@@ -1774,7 +1774,10 @@ pub fn redact_sensitive_plaintext_under(
 
 /// Map a full sensitive path onto a subtree rooted at `root_path`.
 /// Returns `Some("")` when the sensitive path *is* the root; `None` when unrelated.
-fn relative_sensitive_path<'a>(sensitive_path: &'a str, root_path: Option<&str>) -> Option<&'a str> {
+fn relative_sensitive_path<'a>(
+    sensitive_path: &'a str,
+    root_path: Option<&str>,
+) -> Option<&'a str> {
     match root_path {
         None => Some(sensitive_path),
         Some(root) if sensitive_path == root => Some(""),

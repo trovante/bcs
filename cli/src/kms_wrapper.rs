@@ -13,6 +13,7 @@ const DEK_LEN: usize = 32;
 /// Wraps/unwraps DEKs by invoking shell commands from the environment.
 ///
 /// - `BCS_KMS_WRAP_CMD` / `BCS_KMS_UNWRAP_CMD`: commands run via `sh -c`
+///   (Unix) or `cmd /C` (Windows)
 /// - stdin: base64(DEK or wrapped DEK) + newline
 /// - stdout: base64(result)
 /// - env: `BCS_KMS_PROVIDER`, `BCS_KMS_KEY`
@@ -61,6 +62,18 @@ impl CommandKeyWrapper {
 
     fn run(cmd: &str, provider: &str, kek_locator: &str, input: &[u8]) -> Result<Vec<u8>> {
         let input_b64 = base64::engine::general_purpose::STANDARD.encode(input);
+        #[cfg(windows)]
+        let mut child = Command::new("cmd")
+            .arg("/C")
+            .arg(cmd)
+            .env("BCS_KMS_PROVIDER", provider)
+            .env("BCS_KMS_KEY", kek_locator)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .with_context(|| format!("Failed to spawn KMS command: {}", cmd))?;
+        #[cfg(not(windows))]
         let mut child = Command::new("sh")
             .arg("-c")
             .arg(cmd)

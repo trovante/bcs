@@ -35,9 +35,7 @@ pub enum InspectMarker {
 #[derive(Debug, Clone)]
 enum InspectBackend {
     /// Children already decoded as [`Value`] (tests / fallback).
-    Value {
-        children: Vec<(String, Value)>,
-    },
+    Value { children: Vec<(String, Value)> },
     /// Offset-backed children into a shared logical data layer.
     Cursor {
         data: Arc<[u8]>,
@@ -291,7 +289,11 @@ impl InspectNode {
         let kids = self.children()?;
         let count = kids.len();
         for (i, child) in kids.into_iter().enumerate() {
-            let child_indent = if indent.is_empty() { "  " } else { &next_indent };
+            let child_indent = if indent.is_empty() {
+                "  "
+            } else {
+                &next_indent
+            };
             child.write_tree(out, child_indent, i + 1 == count)?;
         }
         Ok(())

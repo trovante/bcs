@@ -206,11 +206,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let bcs_path = dir.path().join("cfg.bcs");
         let mut enc = Encoder::new();
-        fs::write(
-            &bcs_path,
-            enc.encode_from_json(r#"{"a":1}"#).unwrap(),
-        )
-        .unwrap();
+        fs::write(&bcs_path, enc.encode_from_json(r#"{"a":1}"#).unwrap()).unwrap();
         let meta = inspect_meta(&bcs_path).unwrap();
         assert!(meta["metadata"]["total_size"].as_u64().unwrap() > 0);
         assert_eq!(meta["schema"]["ok"], true);
@@ -221,11 +217,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let bcs_path = dir.path().join("cfg.bcs");
         let mut enc = Encoder::new();
-        fs::write(
-            &bcs_path,
-            enc.encode_from_json(r#"{"port":8080}"#).unwrap(),
-        )
-        .unwrap();
+        fs::write(&bcs_path, enc.encode_from_json(r#"{"port":8080}"#).unwrap()).unwrap();
         let report = validate(&bcs_path, false).unwrap();
         assert_eq!(report["ok"], true);
     }
