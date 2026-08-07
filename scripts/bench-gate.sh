@@ -13,14 +13,23 @@ THRESHOLD_PATH_SIMPLE="${BCS_GATE_PATH_SIMPLE_P95_PCT:-8}"
 THRESHOLD_PATH_DEEP="${BCS_GATE_PATH_DEEP_P95_PCT:-8}"
 THRESHOLD_PATH_WILDCARD="${BCS_GATE_PATH_WILDCARD_P95_PCT:-12}"
 THRESHOLD_PATH_HOT="${BCS_GATE_PATH_HOT_P95_PCT:-8}"
+# 1 = fail on latency regressions (default, local). 0 = size-only hard fail
+# (recommended on shared CI runners where p95 noise routinely exceeds 15–25%).
+FAIL_ON_LATENCY="${BCS_GATE_FAIL_ON_LATENCY:-1}"
 
 if ! [[ "$RUNS" =~ ^[0-9]+$ ]] || [ "$RUNS" -lt 1 ]; then
   echo "ERROR: BCS_BENCH_RUNS must be a positive integer (got: $RUNS)"
   exit 1
 fi
 
+if ! [[ "$FAIL_ON_LATENCY" =~ ^[01]$ ]]; then
+  echo "ERROR: BCS_GATE_FAIL_ON_LATENCY must be 0 or 1 (got: $FAIL_ON_LATENCY)"
+  exit 1
+fi
+
 echo "Benchmark gate config:"
 echo "  runs:             $RUNS"
+echo "  fail_on_latency:  $FAIL_ON_LATENCY"
 echo "  path_get_p95:     +${THRESHOLD_PATH_GET}%"
 echo "  decode_p95:       +${THRESHOLD_DECODE}%"
 echo "  load_p95:         +${THRESHOLD_LOAD}%"
@@ -115,7 +124,7 @@ LARGE_HOT_CUR="benchmarks/current/bcs-bench-large.hot.current.json"
 "$BCS_BIN" benchmark "$LARGE_BCS" --mode path-hot --json --runs "$RUNS" > "$LARGE_HOT_CUR"
 
 echo "[4/5] Comparing against baseline thresholds..."
-python3 - "$THRESHOLD_PATH_GET" "$THRESHOLD_DECODE" "$THRESHOLD_LOAD" "$THRESHOLD_SIZE" "$THRESHOLD_PATH_SIMPLE" "$THRESHOLD_PATH_DEEP" "$THRESHOLD_PATH_WILDCARD" "$THRESHOLD_PATH_HOT" <<'PY'
+python3 - "$THRESHOLD_PATH_GET" "$THRESHOLD_DECODE" "$THRESHOLD_LOAD" "$THRESHOLD_SIZE" "$THRESHOLD_PATH_SIMPLE" "$THRESHOLD_PATH_DEEP" "$THRESHOLD_PATH_WILDCARD" "$THRESHOLD_PATH_HOT" "$FAIL_ON_LATENCY" <<'PY'
 import json
 import sys
 
@@ -127,6 +136,7 @@ path_simple_thr = float(sys.argv[5])
 path_deep_thr = float(sys.argv[6])
 path_wildcard_thr = float(sys.argv[7])
 path_hot_thr = float(sys.argv[8])
+fail_on_latency = sys.argv[9] == "1"
 
 profiles = [
     (
@@ -272,10 +282,19 @@ for name, base_path, cur_path, hot_cur_path in profiles:
         print(f"{name}: path_hot_p95 not enforced (low sample count or tiny baseline)")
 
 if failures:
-    print("\nBenchmark gate FAILED:")
+    size_failures = [f for f in failures if "file_size" in f]
+    latency_failures = [f for f in failures if "file_size" not in f]
+    print("\nBenchmark gate regressions:")
     for f in failures:
         print(f"- {f}")
-    sys.exit(1)
+    if size_failures or (fail_on_latency and latency_failures):
+        print("\nBenchmark gate FAILED")
+        sys.exit(1)
+    print(
+        "\nBenchmark gate PASSED (latency advisory only; "
+        "BCS_GATE_FAIL_ON_LATENCY=0). Size thresholds still hard-fail."
+    )
+    sys.exit(0)
 
 print("\nBenchmark gate PASSED")
 PY

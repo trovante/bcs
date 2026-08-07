@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- CI post-squash parity: Benchmark no longer hard-fails on shared-runner latency
+  noise after merge (`BCS_GATE_FAIL_ON_LATENCY=0` in Actions; size still gates).
+- Documentation workflow builds on PRs and skips GitHub Pages deploy when Pages
+  is not enabled (was failing only on `push` to `main`).
+
 ### Changed
 
 - Refresh `benchmarks/baseline/large.json` from GitHub Actions (ubuntu-latest)
